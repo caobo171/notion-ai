@@ -5,29 +5,12 @@ import { useEffect } from 'react';
 import axios from 'axios';
 import OpenAI from 'openai';
 
-import { getEmbedding as originGetEmbedding, EmbeddingIndex } from 'client-vector-search';
-import { pipeline, env } from "@xenova/transformers";
+import { getEmbedding as originGetEmbedding, EmbeddingIndex } from './VectorSearch/VectorSearch';
+import React from 'react';
 
-// Disable local models
-env.allowLocalModels = false;
 function App() {
 
-	// const openai = axios.create({
-	// 	baseURL: 'https://api.openai.com/v1',
-	// 	headers: {
-	// 		'Content-Type': 'application/json',
-	// 		'Authorization': `Bearer ${process.env.REACT_APP_OPENAI_KEY}`,
-	// 	},
-	// });
-
-	// const getOpenAIResponse = async (prompt: any) => {
-	// 	const response = await openai.post('/completions', {
-	// 		model: 'text-davinci-003',
-	// 		prompt: prompt,
-	// 		max_tokens: 100,
-	// 	});
-	// 	return response.data;
-	// };
+	const [query, setQuery] = React.useState('');
 
 	const getAccessToken = () => {
 		const urlParams = new URLSearchParams(window.location.search);
@@ -105,23 +88,23 @@ function App() {
 	}
 
 	const loadPages = async() => {
-		const pages = localStorage.getItem('pages');
 
-		let res =  [
-			{ id: 2, name: "Banana", embedding: await getEmbedding("Banana") },
-			{ id: 3, name: "Cheddar", embedding: await getEmbedding("Cheddar")},
-			{ id: 4, name: "Space", embedding: await getEmbedding("Space")},
-			{ id: 5, name: "database", embedding: await getEmbedding("database")},
-		];
+		//@ts-ignore
+		let pages = localStorage.getItem('pages') ? JSON.parse(localStorage.getItem('pages')) : [];
+		console.log('pages', pages);
 
 		let data: any[] = [];
-		// res.map(async (e: any) => {
-		// 	if (!e.embedding){
-		// 		e.embedding = await getEmbedding(e.content);
-		// 	}
 
-		// 	data.push(e);
-		// })
+		for (let i = 0; i < pages.length; i++) {
+			let e = pages[i];
+			console.log('eeee', e);
+			e.embedding = await getEmbedding(e.content);
+
+			console.log('eaaa', e);
+
+			data.push(e);
+		}
+
 		
 		console.log('res', data);
 		const index = new EmbeddingIndex(data); // Creates an ind
@@ -131,6 +114,18 @@ function App() {
 
 		// specify the storage type
 		await index.saveIndex('indexedDB');
+	}
+
+	const getResult = async() => {
+		
+		const index = new EmbeddingIndex();
+
+		const query_embedding = await getEmbedding(query);
+		const result = await index.search(query_embedding, {
+			topK: 5,
+			useStorage: 'indexedDB',
+		});
+		console.log('result', result);
 	}
 
 	return (
@@ -155,6 +150,10 @@ function App() {
 				<button onClick={getInsignts}>Get Insights</button>
 
 				<button onClick={loadPages}>Get Pages In Storages</button>
+
+				<textarea value={query} onChange={(e) => setQuery(e.target.value)}></textarea>
+
+				<button onClick={getResult}>Get result</button>
 			</header>
 		</div>
 	);
